@@ -2,9 +2,9 @@ import cv2
 import numpy as np
 
 # Config
-cam1_video = "../videos/vid1_2.avi"
-cam2_video = "../videos/vid2_2.avi"
-minimap_path = "../map/mymapv10.png"
+cam1_video = "videos/vid1_2.avi"
+cam2_video = "videos/vid2_2.avi"
+minimap_path = "map/mymapv10.png"
 
 MODES = ["cam1_src", "cam1_dst", "cam2_src", "cam2_dst"]
 
