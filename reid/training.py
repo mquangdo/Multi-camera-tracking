@@ -14,30 +14,36 @@ from reid.model import ReIDModel
 from reid.sampler import RandomIdentitySampler
 import time
 import random
+from configs.load_config import load_config 
 
-CFG = {
-    "data_dir"         : "/kaggle/input/datasets/mrfreddy0209/quang-quan3/kaggle/working/quang_quan",       # thư mục chứa 702 subfolder
-    "save_dir"         : "./checkpoints_quangquan",
-    "num_epochs"       : 120,
-    "P"                : 16,              # số identity / batch  (paper: P=16)
-    "K"                : 4,               # số ảnh / identity    (paper: K=4)
-    "img_h"            : 256,
-    "img_w"            : 128,
-    "base_lr"          : 3.5e-4,          # paper: initial lr = 3.5e-4
-    "weight_decay"     : 5e-4,
-    "triplet_margin"   : 0.3,             # paper: m = 0.3
-    "label_smooth_eps" : 0.1,             # paper: ε = 0.1
-    "beta_center"      : 0.0005,          # paper: β = 0.0005
-    "center_lr"        : 0.1,
-    "num_workers"      : 4,
-    "seed"             : 42,
-}
+
+# CFG = {
+#     "data_dir"         : "/kaggle/input/datasets/mrfreddy0209/quang-quan3/kaggle/working/quang_quan",       # thư mục chứa 702 subfolder
+#     "save_dir"         : "./checkpoints_quangquan",
+#     "num_epochs"       : 120,
+#     "P"                : 16,              # số identity / batch  (paper: P=16)
+#     "K"                : 4,               # số ảnh / identity    (paper: K=4)
+#     "img_h"            : 256,
+#     "img_w"            : 128,
+#     "base_lr"          : 3.5e-4,          # paper: initial lr = 3.5e-4
+#     "weight_decay"     : 5e-4,
+#     "triplet_margin"   : 0.3,             # paper: m = 0.3
+#     "label_smooth_eps" : 0.1,             # paper: ε = 0.1
+#     "beta_center"      : 0.0005,          # paper: β = 0.0005
+#     "center_lr"        : 0.1,
+#     "num_workers"      : 4,
+#     "seed"             : 42,
+# }
+
+cfg = load_config(path="configs/reid_config.yaml")
+
+
 
 def build_dataloader(cfg):
-    """
-    Augment theo paper sec.2 (không có Random Erasing – bỏ trick 3.2):
-      resize → pad 10px → random crop → hflip p=0.5 → normalize
-    """
+    '''
+    Build data loader for training.
+    '''
+    
     transform = transforms.Compose([
         transforms.Resize((cfg["img_h"], cfg["img_w"])),
         transforms.Pad(10),
@@ -61,11 +67,13 @@ def build_dataloader(cfg):
 
 
 def build_model(num_classes, device):
+    '''Build ReIDModel.'''
     model = ReIDModel(num_classes).to(device)
     return model
 
 
 def build_losses(num_classes, cfg, device):
+    '''Build loss functions: Label Smoothing CE, Triplet Loss hard mining, Center Loss.'''
     criterion_id     = LabelSmoothingCE(num_classes, eps=cfg["label_smooth_eps"]).to(device)
     criterion_tri    = TripletLossHardMining(margin=cfg["triplet_margin"]).to(device)
     criterion_center = CenterLoss(num_classes, feat_dim=2048).to(device)
@@ -73,11 +81,7 @@ def build_losses(num_classes, cfg, device):
 
 
 def build_optimizers(model, criterion_center, cfg):
-    """
-    Paper sec.2 step 8:
-      - Adam, lr=3.5e-4, weight_decay=5e-4
-      - Center loss: SGD lr=0.5 (optimizer riêng, không dùng scheduler)
-    """
+    '''Build optimizers for model and center loss.'''
     optimizer = optim.Adam(
         model.parameters(),
         lr=cfg["base_lr"],
@@ -88,15 +92,11 @@ def build_optimizers(model, criterion_center, cfg):
 
 
 def build_scheduler(optimizer):
-    """
-    Trick 3.1 – Warmup LR  (paper eq.1, epoch 1-indexed)
-      t ≤ 10        : lr(t) = 3.5e-5 * t/10  → tuyến tính warmup
-      10 < t ≤ 40   : lr    = 3.5e-4          (factor = 1.0)
-      40 < t ≤ 70   : lr    = 3.5e-5          (factor = 0.1)
-      70 < t ≤ 120  : lr    = 3.5e-6          (factor = 0.01)
-
-    LambdaLR nhận epoch 0-indexed → cộng 1 để khớp paper.
-    """
+    '''
+    Build learning rate scheduler with warmup and step decay.
+    Warmup: linear increase from base_lr/10 to base_lr in first 10 epochs.
+    Step decay: lr * 0.1 at epoch 40 and 70.
+    '''
     def lr_lambda(epoch):          # epoch: 0-indexed từ LambdaLR
         t = epoch + 1              # chuyển sang 1-indexed như paper
         if t <= 10:
@@ -114,14 +114,10 @@ def build_scheduler(optimizer):
 def train_one_epoch(model, loader, criterion_id, criterion_tri,
                     criterion_center, optimizer, optimizer_center,
                     cfg, device):
-    """
-    Forward + backward cho 1 epoch.
-    Total loss = L_ID + L_Triplet + β * L_Center  (paper eq.6)
-      - L_ID     : Label Smooth CE trên fi  (sau BNNeck)
-      - L_Triplet: Hard-mining Triplet trên ft (trước BNNeck)
-      - L_Center : Center Loss trên ft
-    Returns dict metrics.
-    """
+    '''
+    Train model for one epoch.
+    '''
+    
     model.train()
     sum_loss = sum_id = sum_tri = sum_ctr = 0.0
     correct  = total  = 0
@@ -169,6 +165,9 @@ def train_one_epoch(model, loader, criterion_id, criterion_tri,
 
 def save_checkpoint(path, epoch, model, optimizer, scheduler,
                     criterion_center, metrics, cfg):
+    '''
+    Save checkpoint to file.
+    '''
     torch.save({
         "epoch"           : epoch,
         "model_state"     : model.state_dict(),
@@ -183,10 +182,10 @@ def save_checkpoint(path, epoch, model, optimizer, scheduler,
     
 def load_checkpoint(resume_path, model, optimizer, scheduler,
                     criterion_center, device):
-    """
-    Restore model / optimizer / scheduler / center weights từ file .pth.
-    Trả về (start_epoch, best_loss, best_epoch).
-    """
+    '''
+    Load checkpoint from file and resume training state.
+    '''
+    
     if not os.path.isfile(resume_path):
         raise FileNotFoundError(f"Checkpoint không tìm thấy: {resume_path}")
 
@@ -205,52 +204,12 @@ def load_checkpoint(resume_path, model, optimizer, scheduler,
     print(f"  → Resumed  : epoch={start_epoch}  loss={best_loss:.4f}  acc={ckpt.get('acc', 0):.2f}%")
     return start_epoch, best_loss, best_epoch
 
-def load_model_for_inference(checkpoint_path, num_classes, device):
-    """
-    Load ReIDModel từ checkpoint, chuyển sang eval mode.
 
-    Parameters
-    ----------
-    checkpoint_path : str
-    num_classes     : int – phải khớp với lúc train (702 với DukeMTMC)
-    device          : torch.device
-
-    Returns
-    -------
-    model : ReIDModel ở eval mode, sẵn sàng extract_features
-    """
-    model = ReIDModel(num_classes).to(device)
-    ckpt  = torch.load(checkpoint_path, map_location=device)
-    model.load_state_dict(ckpt["model_state"])
-    model.eval()
-    print(f"Loaded model from {checkpoint_path}  (epoch={ckpt.get('epoch', '?')})")
-    return model
-
-
-# Transform dùng lúc inference (không augment, chỉ resize + normalize)
-def build_inference_transform(img_h=256, img_w=128):
+def train(cfg=cfg, resume=None):
+    '''
+    Main training loop.
+    '''
     
-    return transforms.Compose([
-        transforms.Resize((img_h, img_w)),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                              std=[0.229, 0.224, 0.225]),
-    ])
-    
-def train(cfg=CFG, resume=None):
-    """
-    Parameters
-    ----------
-    cfg    : dict config (xem CFG ở đầu file)
-    resume : str | None
-        - None            → train từ đầu
-        - "path/ckpt.pth" → tiếp tục từ checkpoint đó
-        Ví dụ:
-          train(CFG)                                        # train mới
-          train(CFG, resume="./checkpoints/epoch_050.pth") # resume epoch 50
-          train(CFG, resume="./checkpoints/best_model.pth")# resume best
-    """
-    # --- seed ---
     random.seed(cfg["seed"])
     torch.manual_seed(cfg["seed"])
     if torch.cuda.is_available():
@@ -264,7 +223,6 @@ def train(cfg=CFG, resume=None):
     print(f"Skip       : Random Erasing Augmentation (trick 3.2)")
     print("=" * 72)
 
-    # --- build tất cả components ---
     loader, num_classes             = build_dataloader(cfg)
     model                           = build_model(num_classes, device)
     criterion_id, criterion_tri, \
@@ -276,7 +234,6 @@ def train(cfg=CFG, resume=None):
     print(f"Batch      : P={cfg['P']} × K={cfg['K']} = {cfg['P']*cfg['K']}")
     print(f"Steps/epoch: {len(loader)}")
 
-    # --- resume (nếu có) ---
     start_epoch = 0
     best_loss   = float("inf")
     best_epoch  = -1
@@ -324,7 +281,6 @@ def train(cfg=CFG, resume=None):
             f"{elapsed:.0f}s"
         )
 
-        # ── lưu best checkpoint ──────────────────────────────
         if metrics["loss"] < best_loss:
             best_loss  = metrics["loss"]
             best_epoch = epoch + 1
@@ -340,7 +296,6 @@ def train(cfg=CFG, resume=None):
             )
             print(f"  ✓ Best saved → epoch={best_epoch}  loss={best_loss:.4f}")
 
-        # ── lưu periodic checkpoint mỗi 10 epoch ────────────
         if (epoch + 1) % 10 == 0:
             ckpt_path = os.path.join(cfg["save_dir"], f"epoch_{epoch+1:03d}.pth")
             save_checkpoint(

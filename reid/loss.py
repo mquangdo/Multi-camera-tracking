@@ -14,9 +14,9 @@ from torch.optim.lr_scheduler import LambdaLR
 class LabelSmoothingCE(nn.Module):
     """
     Trick 3.3 – Label Smoothing  (paper eq.3)
-      q_i = 1 - (N-1)/N * ε    nếu i == y   →  1 - ε + ε/N
-      q_i = ε / N              ngược lại
-    Tổng xác suất: (1 - ε + ε/N) + (N-1)*(ε/N) = 1 ✓
+      q_i = 1 - (N-1)/N * ε    if i == y   →  1 - ε + ε/N
+      q_i = ε / N              p.w
+    Prob: (1 - ε + ε/N) + (N-1)*(ε/N) = 1 ✓
     """
     def __init__(self, num_classes, eps=0.1):
         super().__init__()
@@ -39,8 +39,8 @@ class TripletLossHardMining(nn.Module):
     """
     Triplet Loss hard mining  (paper eq.4)
       L_Tri = [d_p - d_n + α]+
-      Hard positive : max pairwise dist cùng identity (loại self-pair)
-      Hard negative : min pairwise dist khác identity
+      Hard positive : max pairwise with same identity 
+      Hard negative : min pairwise with different identity
     """
     def __init__(self, margin=0.3):
         super().__init__()
@@ -70,7 +70,6 @@ class CenterLoss(nn.Module):
     """
     Trick 3.6 – Center Loss  (paper eq.5)
       L_C = 1/2 * Σ_j ||ft_j - c_{y_j}||²₂
-      centers học qua optimizer riêng SGD lr=0.5
     """
     def __init__(self, num_classes, feat_dim):
         super().__init__()

@@ -1,0 +1,25 @@
+data_dir: "/kaggle/input/datasets/mrfreddy0209/quang-quan3/kaggle/working/quang_quan"
+save_dir: "./checkpoints_quangquan"
+
+training:
+  num_epochs: 120
+  seed: 42
+
+dataloader:
+  P: 16            # số identity / batch (paper: P=16)
+  K: 4             # số ảnh / identity   (paper: K=4)
+  num_workers: 4
+
+image:
+  img_h: 256
+  img_w: 128
+
+optimizer:
+  base_lr: 0.00035       # paper: initial lr = 3.5e-4
+  weight_decay: 0.0005
+  center_lr: 0.1
+
+loss:
+  triplet_margin: 0.3    # paper: m = 0.3
+  label_smooth_eps: 0.1  # paper: ε = 0.1
+  beta_center: 0.0005    # paper: β = 0.0005

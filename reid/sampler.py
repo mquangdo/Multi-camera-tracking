@@ -13,11 +13,11 @@ from torchvision import transforms, datasets, models
 from torch.optim.lr_scheduler import LambdaLR
 
 class RandomIdentitySampler(Sampler):
-    """
-    Mỗi iteration yield đúng P*K indices:
-      - chọn ngẫu nhiên P identity
-      - mỗi identity lấy K ảnh (lặp lại nếu không đủ)
-    """
+    '''
+    Trick 3.1 – Random Identity Sampling 
+    Each batch contains P identities, each with K samples. Total batch size = P×K.
+    '''
+    
     def __init__(self, dataset, P, K):
         self.P = P
         self.K = K

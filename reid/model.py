@@ -12,14 +12,12 @@ from torch.optim.lr_scheduler import LambdaLR
 
 
 class BNNeck(nn.Module):
-    """
-    Trick 3.5 – BNNeck
-      ft  ──────────────────────► Triplet loss + Center loss
-      ft ──► BN ──► fi ──► FC ──► logits ──► ID loss (Label Smooth CE)
-    • BN: bias.requires_grad=False
-    • FC: no bias, Kaiming normal init
-    Inference: dùng fi + cosine distance
-    """
+    '''
+    Trick 3.4 – BNNeck (paper section 3.4)
+    Add a BatchNorm layer (without learnable bias) + Linear classifier after global pooling.
+    - ft: feature before BNNeck, used for Triplet Loss
+    - fi: feature after BNNeck, used for ID Loss
+    '''
     def __init__(self, feat_dim, num_classes):
         super().__init__()
         self.bn = nn.BatchNorm1d(feat_dim)
@@ -61,19 +59,15 @@ class ReIDModel(nn.Module):
 
     @torch.no_grad()
     def inference(self, x):
-        """
-        Dùng lúc test/retrieval, KHÔNG dùng lúc train.
-        Chỉ trả về fi đã L2-normalize (sau BNNeck, bỏ qua classifier).
-        Sau khi normalize: cosine_similarity(a, b) = dot(a, b).
-
-        Parameters
-        ----------
-        x : torch.Tensor (B, 3, H, W)
-
-        Returns
-        -------
-        fi : torch.Tensor (B, 2048) – L2-normalized, dùng để retrieval
-        """
+        '''
+        Extract L2-normalized feature fi for ReID inference.
+        Args:
+            x: (B, 3, H, W) input image batch
+        
+        Returns:
+            fi: (B, feature_dim) L2-normalized feature after BNNeck
+        '''
+        
         self.eval()
         x  = self.backbone(x)
         ft = self.gap(x).view(x.size(0), -1)  # (B, 2048)
