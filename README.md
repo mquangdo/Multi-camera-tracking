@@ -1,4 +1,4 @@
-# Multi-Camera Human Tracking
+# Multi-Camera Tracking
 
 A cross-camera multi-person tracking system that combines **YOLOv8** object detection, **DeepSORT**-style tracking with Kalman filters, and a custom **ReID (Re-Identification)** model based on ResNet50 + BNNeck. The system maintains a cross-camera gallery of appearance embeddings so that when a person exits one camera view and enters another, they are re-identified and assigned the same global track ID.
 
@@ -29,8 +29,10 @@ Camera 2 Video ──► YOLOv8 Detection ──► Feature Extraction ──┘
 
 | File | Description |
 |---|---|
-| `main.py` | Entry point: configures feature extractor, gallery, and runs the two-camera pipeline |
-| `visualize.py` | Interactive visualization with minimap, track overlay, and click-to-focus on any track ID |
+| `main.py` | Legacy entry point — hardcoded paths, two-camera pipeline |
+| `run_trackers.py` | New entry point — loads config from `configs/main_config.yaml`, runs two-camera pipeline |
+| `visualize.py` | Interactive OpenCV visualization with minimap, track overlay, and click-to-focus on any track ID |
+| `ui.py` | Streamlit web UI — configurable paths sidebar, renders combined camera views + minimap into an output video |
 | `ultilities.py` | Helper functions: deterministic track coloring, homography projection, JSONL track loading, drawing utilities |
 | `pyproject.toml` | Project metadata (name, version, Python >=3.12) |
 
@@ -51,31 +53,37 @@ Camera 2 Video ──► YOLOv8 Detection ──► Feature Extraction ──┘
 | File | Description |
 |---|---|
 | `model.py` | `ReIDModel` — ResNet50 backbone (ImageNet pretrained) with last-stride=1, AdaptiveAvgPool2d, and `BNNeck` module. `forward()` returns `(ft, fi, logits)`; `inference()` returns L2-normalized `fi` for retrieval |
-| `bnneck.py` | (part of `model.py`) `BNNeck` — BatchNorm1d (bias frozen) + Linear classifier (no bias, Kaiming init). Separates triplet features (`ft`, before BN) from classification features (`fi`, after BN) |
 | `training.py` | Full training pipeline: `RandomIdentitySampler` (P=16, K=4), ResNet50 backbone, triplet + center + label-smoothing CE losses, Adam optimizer, warmup LR scheduler (10-epoch linear warmup, decay at epoch 40/70). Saves best and periodic checkpoints |
+| `inference.py` | Standalone inference helpers: `load_model_for_inference` (load checkpoint → eval mode), `build_inference_transform` (resize 256×128 + normalize) |
+| `benchmark.py` | `run_benchmark()` — evaluates trained ReID model on a query/gallery split. Computes **mAP**, **Rank-1**, and **CMC curve**. Configurable via `configs/benchmark_config.yaml` |
+| `metrics.py` | Evaluation metrics: `collect_images_with_subfolder` (recursive image loader with pid/cam parsing), `extract_features` (batch feature extraction), `evaluate` (mAP + CMC with DukeMTMC protocol: same-pid-different-cam = positive, same-pid-same-cam = junk), `debug_evaluation_setup` (prints dataset statistics) |
 | `sampler.py` | `RandomIdentitySampler` — yields `P * K` indices per batch: randomly selects P identities, then K images per identity (with repetition if needed) |
 | `loss.py` | Three loss functions: `LabelSmoothingCE` (ε=0.1), `TripletLossHardMining` (margin=0.3, hard-positive/negative mining), `CenterLoss` (β=0.0005) |
+
+### `configs/` — YAML Configuration
+
+| File | Description |
+|---|---|
+| `main_config.yaml` | Main pipeline config: weight paths, video paths, ReID params (`num_classes`, `input_size`, `feature_dim`, `threshold`), tracker params (`max_age`, `target_classes`) |
+| `benchmark_config.yaml` | Benchmark config: model path, query/gallery directories, image size, batch size, `max_rank`, `debug` flag |
+| `reid_config.yaml` | Training config: data/save directories, training hyperparameters (epochs, P, K, LR, weight decay, loss params) |
+| `mapping_config.yaml` | Visualization config: minimap path, homography source/destination points for each camera |
+| `load_config.py` | `load_config(path)` — utility to load any YAML config file using PyYAML |
+| `tracker_config.yaml` | *(empty)* Placeholder |
+| `pipeline_config.yaml` | *(empty)* Placeholder |
 
 ### `tools/` — Utilities
 
 | File | Description |
 |---|---|
-| `mapping_src_dest.py` | Interactive OpenCV tool for homography calibration. Click 4 source points on each camera view, then 4 corresponding destination points on the minimap. Press `p` to print the resulting `np.array` coordinates ready for copy-paste into `visualize.py` |
-
-### `configs/` — Configuration (YAML)
-
-| File | Description |
-|---|---|
-| `pipeline_config.yaml` | *(empty)* Placeholder for pipeline configuration |
-| `reid_config.yaml` | *(empty)* Placeholder for ReID configuration |
-| `tracker_config.yaml` | *(empty)* Placeholder for tracker configuration |
+| `mapping_src_dest.py` | Interactive OpenCV tool for homography calibration. Click 4 source points on each camera view, then 4 corresponding destination points on the minimap. Press `p` to print the resulting `np.array` coordinates ready for copy-paste into `visualize.py` or `mapping_config.yaml` |
 
 ### `results/` — Output
 
 | File | Description |
 |---|---|
 | `tracks.jsonl` | Track results in JSONL format — one line per detection per frame |
-| `tracks2.jsonl` | Secondary run output used by `visualize.py` by default |
+| `tracks2.jsonl` | Secondary run output used by `visualize.py` and `ui.py` by default |
 
 ### `weights/` — Model Weights
 
@@ -88,10 +96,10 @@ Camera 2 Video ──► YOLOv8 Detection ──► Feature Extraction ──┘
 
 | File | Description |
 |---|---|
-| `videos/vid1_2.avi` | Camera 1 footage (used by `visualize.py`) |
-| `videos/vid2_2.avi` | Camera 2 footage (used by `visualize.py`) |
-| `videos/video1_crop.avi` | Camera 1 footage (used by `main.py`) |
-| `videos/video2_crop.avi` | Camera 2 footage (used by `main.py`) |
+| `videos/vid1_2.avi` | Camera 1 footage |
+| `videos/vid2_2.avi` | Camera 2 footage |
+| `videos/video1_crop.avi` | Alternate Camera 1 footage (used by legacy `main.py`) |
+| `videos/video2_crop.avi` | Alternate Camera 2 footage (used by legacy `main.py`) |
 
 ### `map/` — Minimap
 
@@ -114,19 +122,62 @@ The `ReIDModel` in `reid/model.py` implements several tricks from the person ReI
 
 **Inference output**: 2048-D L2-normalized vector suitable for cosine similarity search.
 
+## Benchmarking
+
+Evaluate a trained ReID model on DukeMTMC or any query/gallery split:
+
+```
+python reid/benchmark.py
+```
+
+Configure `configs/benchmark_config.yaml`:
+
+```yaml
+benchmark:
+  model_path: "weights/reid/model01.pth"
+  query_dir: "data/query"
+  gallery_dir: "data/gallery"
+  num_classes: 702
+  img_h: 256
+  img_w: 128
+  batch_size: 64
+  id_from: "folder"       # "folder" or "filename"
+  max_rank: 50
+  debug: true
+```
+
+Outputs: mAP (%), Rank-1 (%), and CMC at ranks 5 and 10.
+
+### Evaluation Protocol (`reid/metrics.py`)
+
+- **Positive match**: same `pid`, different `cam`
+- **Junk**: same `pid`, same `cam` (ignored in ranking)
+- **mAP**: mean Average Precision over all queries
+- **CMC**: Cumulative Matching Characteristic (probability of correct match within top-K)
+
+Image naming convention: `_c{cam_id}` in filename for camera parsing. PID is read from parent folder name (`id_from="folder"`) or leading digits of filename (`id_from="filename"`).
+
 ## Usage
 
-### Run the Tracking Pipeline
+### Run the Tracking Pipeline (recommended)
+
+```bash
+python run_trackers.py
+```
+
+Configures everything via `configs/main_config.yaml`. Processes two videos and exports JSONL.
+
+### Run the Legacy Pipeline
 
 ```bash
 python main.py
 ```
 
-Processes two videos (`videos/video1_crop.avi`, `videos/video2_crop.avi`) and exports results to `results/tracks.jsonl`.
+Hardcoded paths — processes `videos/video1_crop.avi` and `videos/video2_crop.avi`.
 
 ### Train the ReID Model
 
-Edit paths in `reid/training.py` (set `data_dir` and `save_dir`), then:
+Edit `configs/reid_config.yaml` (set `data_dir` and `save_dir`), then:
 
 ```bash
 python -c "from reid.training import train; train()"
@@ -138,7 +189,7 @@ To resume from a checkpoint:
 python -c "from reid.training import train; train(resume='./checkpoints/epoch_050.pth')"
 ```
 
-### Interactive Visualization
+### Interactive OpenCV Visualization
 
 ```bash
 python visualize.py
@@ -153,13 +204,21 @@ Shows two camera views + minimap. Controls:
 | `R` | Reset focus (show all tracks) |
 | `Q` / `ESC` | Quit |
 
+### Streamlit Web UI
+
+```bash
+streamlit run ui.py
+```
+
+Sidebar inputs for video/JSONL/minimap paths. Click **Render Video** to generate a combined output video (cam1 + cam2 + minimap side-by-side) with track overlays.
+
 ### Homography Calibration
 
 ```bash
 python tools/mapping_src_dest.py
 ```
 
-Four modes cycled with `n`: `cam1_src` → `cam1_dst` → `cam2_src` → `cam2_dst`. For each mode, left-click 4 points. Press `p` to print the `np.array` definitions ready to paste into `visualize.py`.
+Four modes cycled with `n`: `cam1_src` → `cam1_dst` → `cam2_src` → `cam2_dst`. For each mode, left-click 4 points. Press `p` to print the `np.array` definitions ready to paste into `mapping_config.yaml` or `visualize.py`.
 
 ## Output Format (JSONL)
 
@@ -180,7 +239,7 @@ Fields:
 |---|---|---|
 | `conf_threshold` | 0.75 | YOLOv8 confidence threshold |
 | `nms_iou_threshold` | 0.4 | YOLOv8 NMS IoU threshold |
-| `max_age` | 30 | Frames before a lost track is deleted |
+| `max_age` | 15 | Frames before a lost track is deleted |
 | `min_hits` | 3 | Consecutive detections to confirm a track |
 | `iou_threshold` | 0.3 | Minimum IoU for Hungarian matching gate |
 | `lambda_iou` | 0.4 | IoU cost weight in combined cost |
