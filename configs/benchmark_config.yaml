@@ -1,0 +1,14 @@
+# Used for benchmarking ReID model on DukeMTMC dataset
+
+benchmark:
+  model_path: "weights/reid/model01.pth"
+  query_dir: "data/query"
+  gallery_dir: "data/gallery"
+
+  num_classes: 702
+  img_h: 256
+  img_w: 128
+  batch_size: 64
+  id_from: "folder"
+  max_rank: 50
+  debug: true

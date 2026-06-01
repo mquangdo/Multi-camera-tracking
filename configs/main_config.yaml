@@ -1,3 +1,5 @@
+# Main configuration file for running the multi-camera tracking to get the results in results/tracks.jsonl. This file contains paths to weights, videos, and other parameters for ReID and tracking.
+
 weights:
   reid: "weights/reid/model01.pth"
   detector: "weights/detector/yolov8m.pt"

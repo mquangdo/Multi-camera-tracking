@@ -1,3 +1,5 @@
+# Used for training ReID model on DukeMTMC dataset
+
 data_dir: "/kaggle/input/datasets/mrfreddy0209/quang-quan3/kaggle/working/quang_quan"
 save_dir: "./checkpoints_quangquan"
 
