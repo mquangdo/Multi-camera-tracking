@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import yaml
 from ultilities import load_tracks_jsonl_grouped, draw_dots_on_minimap, draw_tracks, build_click_boxes
-from configs.load_config import load_run_config, load_map_config
+from configs.load_config import load_config
 
 
 def run_visualization(
@@ -12,7 +12,23 @@ def run_visualization(
     minimap_image_path,
     cam1_src_pts, cam1_dst_pts,
     cam2_src_pts, cam2_dst_pts,
-):
+):  
+    '''
+    Run the visualization of tracking results on videos.
+    
+    Args:
+        cam1_video_path: str, path to camera 1 video file
+        cam2_video_path: str, path to camera 2 video file
+        tracks_jsonl_path: str, path to JSONL file containing tracking results
+        minimap_image_path: str, path to minimap image file
+        cam1_src_pts: array, source points for camera 1 perspective transform
+        cam1_dst_pts: array, destination points for camera 1 perspective transform
+        cam2_src_pts: array, source points for camera 2 perspective transform
+        cam2_dst_pts: array, destination points for camera 2 perspective transform
+    
+    Returns: None (displays video windows)
+    '''
+    
     grouped      = load_tracks_jsonl_grouped(tracks_jsonl_path)
     minimap_base = cv2.imread(minimap_image_path)
     H1           = cv2.getPerspectiveTransform(cam1_src_pts, cam1_dst_pts)
@@ -92,16 +108,32 @@ def run_visualization(
     cap2.release()
     cv2.destroyAllWindows()
 
-
-if __name__ == "__main__":
-    cfg = load_run_config("configs/main_config.yaml")
-    minimap_path, results_path, cam1_src, cam1_dst, cam2_src, cam2_dst  = load_map_config("configs/mapping_config.yaml")
+def visualize():
+    '''
+    Run the visualization of tracking results on videos.
+    
+    Args: None
+    
+    Returns: None (displays video windows)
+    '''
+    
+    cfg = load_config("configs/main_config.yaml")
+    map_cfg = load_config("configs/mapping_config.yaml")
+    
+    cam1_video_path = cfg["videos"]["cam1"]
+    cam2_video_path = cfg["videos"]["cam2"]
+    results_path    = map_cfg["results"]["jsonl"]
+    minimap_path    = map_cfg["minimap"]
+    cam1_src        = np.array(map_cfg["cam1"]["src_pts"], dtype=np.float32)
+    cam1_dst        = np.array(map_cfg["cam1"]["dst_pts"], dtype=np.float32)
+    cam2_src        = np.array(map_cfg["cam2"]["src_pts"], dtype=np.float32)
+    cam2_dst        = np.array(map_cfg["cam2"]["dst_pts"], dtype=np.float32)
 
     run_visualization(
-        cam1_video_path=cfg["videos"]["cam1"],
-        cam2_video_path=cfg["videos"]["cam2"],
-        tracks_jsonl_path=results_path,
-        minimap_image_path=minimap_path,
-        cam1_src_pts=cam1_src, cam1_dst_pts=cam1_dst,
-        cam2_src_pts=cam2_src, cam2_dst_pts=cam2_dst,
+        cam1_video_path, cam2_video_path, results_path, minimap_path,
+        cam1_src, cam1_dst, cam2_src, cam2_dst
     )
+
+
+if __name__ == "__main__":
+    visualize()

@@ -56,6 +56,7 @@ class CrossCameraGallery:
 
     # ---------- Active-ID helpers (to avoid one ID active in multiple cams) ----------
     def mark_active(self, track_id, cam_name):
+        '''Mark a track ID as currently active in a specific camera.'''
         if track_id is not None:
             self.id_active[track_id] = cam_name
 
@@ -64,9 +65,11 @@ class CrossCameraGallery:
             self.id_active.pop(track_id, None)
 
     def is_active(self, track_id):
+        '''Check if a track ID is currently active in any camera.'''
         return track_id in self.id_active
 
     def active_cam(self, track_id):
+        '''Return the camera name where this track ID is currently active, or None if inactive.'''
         return self.id_active.get(track_id)
 
     def query(self, feature):
@@ -130,6 +133,7 @@ class CrossCameraGallery:
         print(f"  Next ID counter: {KalmanBoxTracker.count}")
 
     def get_source(self, track_id):
+        '''Return the camera source that originally created this track ID, or None if unknown.'''
         return self.id_source.get(track_id)
 
     def get_all_ids(self):

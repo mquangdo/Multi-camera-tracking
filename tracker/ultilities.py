@@ -7,22 +7,32 @@ import cv2
 import json
 
 def get_color(track_id):
-    """Deterministic color per track ID."""
+    '''
+    Deterministic color per track ID.
+    
+    Args:
+        track_id: int — track ID to generate color for
+        
+    Returns:
+        (b, g, r) tuple of ints in [0, 255]
+    '''
     np.random.seed(int(track_id) * 7 + 13)
     return tuple(int(c) for c in np.random.randint(50, 255, size=3))
 
 
 def draw_tracks(frame, tracks, gallery_ids=None, thickness=2):
-    """
-    Draw bounding boxes and IDs. If gallery_ids is provided,
-    tracks whose ID is in gallery_ids get a ★ re-ID marker.
-
+    '''
+    Draw bounding boxes and track IDs on the frame.
+    
     Args:
-        frame:       BGR image (modified in-place)
-        tracks:      (K, 5) [x1,y1,x2,y2, track_id]
-        gallery_ids: set of IDs from cross-camera gallery (for labeling)
-        thickness:   line thickness
-    """
+        frame: np.ndarray (H, W, 3) - input image
+        tracks: np.ndarray (K, 5) [x1,y1,x2,y2, track_id] - tracks to draw
+        gallery_ids: set of track IDs that are in the cross-camera gallery (optional)
+        thickness: int - thickness of bounding box lines
+
+    Returns:
+        np.ndarray - image with drawn tracks
+    '''
     for trk in tracks:
         x1, y1, x2, y2, tid = int(trk[0]), int(trk[1]), int(trk[2]), int(trk[3]), int(trk[4])
         color = get_color(tid)
@@ -44,9 +54,18 @@ def draw_tracks(frame, tracks, gallery_ids=None, thickness=2):
 
 
 def append_tracks_jsonl(fp, frame_idx, cam_name, tracks):
-    """
-    tracks: (K,5) [x1,y1,x2,y2,tid]
-    """
+    '''
+    Append track records to a JSONL file for later analysis or visualization.
+    
+    Args:
+        fp: file-like object opened for appending text
+        frame_idx: int - current frame index
+        cam_name: str - camera name or ID
+        tracks: np.ndarray (K, 5) [x1,y1,x2,y2, track_id] - tracks to record
+    
+    Returns:
+        None (writes to file)
+    '''
     if tracks is None:
         return
     for trk in tracks:

@@ -1,12 +1,22 @@
+import sys, os 
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import cv2
 import numpy as np
+from configs.load_config import load_config
 
 # Config
-cam1_video = "videos/vid1_2.avi"
-cam2_video = "videos/vid2_2.avi"
-minimap_path = "map/mymapv10.png"
+cfg = load_config(path="configs/main_config.yaml")
+map_cfg = load_config(path="configs/mapping_config.yaml")
+
+cam1_video = cfg['videos']['cam1']
+cam2_video = cfg['videos']['cam2']
+minimap_path = map_cfg['minimap']
+
 
 MODES = ["cam1_src", "cam1_dst", "cam2_src", "cam2_dst"]
+
 
 # State
 state = {
@@ -16,6 +26,17 @@ state = {
 
 # Load first frame of videos and minimap
 def load_data(cam1_path, cam2_path, map_path):
+    '''
+    Load the first frame of each video and the minimap.
+
+    Args:
+        cam1_path: str — path to the first camera video
+        cam2_path: str — path to the second camera video
+        map_path: str — path to the minimap image
+
+    Returns:
+        tuple — (frame1, frame2, minimap)
+    '''
     cap1 = cv2.VideoCapture(cam1_path)
     cap2 = cv2.VideoCapture(cam2_path)
 
@@ -39,12 +60,37 @@ def load_data(cam1_path, cam2_path, map_path):
 
 # Draw
 def draw_points(img, pts, color):
+    '''
+    Draw points with indices on an image.
+    
+    Args:
+        img: np.ndarray — image to draw on
+        pts: list — list of points to draw
+        color: tuple — color of the points
+    
+    Returns:        
+        None (modifies img in-place)
+    '''
+    
     for i, (x, y) in enumerate(pts):
         cv2.circle(img, (x, y), 6, color, -1)
         cv2.putText(img, str(i), (x + 6, y + 6),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
 def draw_labels(img1, img2, imgm, current_mode):
+    '''
+    Draw mode and labels on the images.
+    
+    Args:
+        img1: np.ndarray — first camera frame
+        img2: np.ndarray — second camera frame
+        imgm: np.ndarray — minimap image
+        current_mode: str — current mode for labeling
+    
+    Returns:
+        None (modifies images in-place)
+    '''
+    
     for img in [img1, img2]:
         cv2.putText(img, f"MODE: {current_mode}", (10, 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
@@ -56,6 +102,19 @@ def draw_labels(img1, img2, imgm, current_mode):
                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
 
 def render(frame1, frame2, minimap, points, current_mode):
+    '''
+    Render the current state of point selection on the images.
+    
+    Args:
+        frame1: np.ndarray — first camera frame
+        frame2: np.ndarray — second camera frame
+        minimap: np.ndarray — minimap image
+        points: dict — dictionary of selected points for each mode
+        current_mode: str — current mode for labeling
+    
+    Returns:
+        None (displays images in windows)
+    '''
     img1, img2, imgm = frame1.copy(), frame2.copy(), minimap.copy()
 
     draw_points(img1, points["cam1_src"], (0, 255, 0))
@@ -83,7 +142,7 @@ def print_result(points):
     def to_np(arr):
         return "np.array([" + ",".join([f"[{x},{y}]" for x, y in arr]) + "], dtype=np.float32)"
 
-    print("\n===== COPY ĐOẠN NÀY =====\n")
+    print("\n=========================\n")
     print("cam1_src_pts =", to_np(points["cam1_src"]))
     print("cam1_dst_pts =", to_np(points["cam1_dst"]))
     print("cam2_src_pts =", to_np(points["cam2_src"]))

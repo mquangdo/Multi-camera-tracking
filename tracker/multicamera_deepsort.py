@@ -1,14 +1,16 @@
-import sys, os 
+import sys, os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from tracker.feature_extractor import CustomReIDFeatureExtractor
+from tracker.gallery import CrossCameraGallery 
 import numpy as np
 import cv2
 import time
 from tracker.kalman_filter import KalmanBoxTracker, associate_detections_to_trackers
 
 class MultiCameraDeepSORT:
-    """
+    '''
     DeepSORT tracker with cross-camera re-identification support.
 
     Args:
@@ -22,13 +24,13 @@ class MultiCameraDeepSORT:
         iou_threshold:      IoU gate for within-frame matching
         lambda_iou:         IoU cost weight
         lambda_app:         appearance cost weight
-    """
+    '''
 
-    def __init__(self, feature_extractor, gallery,
-                 gallery_mode="build",
-                 max_age=30, min_hits=3,
-                 iou_threshold=0.3,
-                 lambda_iou=0.4, lambda_app=0.6, cam_name='cam_1', save_dir="my_image"):
+    def __init__(self, feature_extractor: CustomReIDFeatureExtractor, gallery: CrossCameraGallery,
+                 gallery_mode: str ="build",
+                 max_age: int=30, min_hits: int=3,
+                 iou_threshold: float=0.3,
+                 lambda_iou: float=0.4, lambda_app: float=0.6, cam_name: str='cam_1', save_dir: str="my_image") -> None:
         self.feature_extractor = feature_extractor
         self.gallery = gallery
         self.gallery_mode = gallery_mode
@@ -46,7 +48,19 @@ class MultiCameraDeepSORT:
         # Track which global IDs have been assigned via re-ID in this session
         self.reid_log = {}  # { local_tracker_idx: (global_id, distance) }
 
-    def _save_crop(self, frame_bgr, bbox, track_id):
+    def _save_crop(self, frame_bgr: np.ndarray, bbox: np.ndarray, track_id: int) -> None:
+        '''
+        Save a cropped image of the detected person for potential gallery building.
+        
+        Args:
+            frame_bgr: np.ndarray (H, W, 3) - original frame in BGR format
+            bbox:      np.ndarray (4,) - [x1, y1, x2, y2] bounding box
+            track_id:  int - assigned track ID for naming the crop
+        
+        Returns:
+            None (saves image to disk)
+        '''
+        
         x1, y1, x2, y2 = map(int, bbox)
         h, w = frame_bgr.shape[:2]
         x1, y1 = max(0, x1), max(0, y1)
@@ -60,12 +74,15 @@ class MultiCameraDeepSORT:
         
 
     def _try_reid(self, feature):
-        """
+        '''
         Attempt to re-identify a detection using the cross-camera gallery.
 
+        Args:
+            feature: np.ndarray (512,) - appearance feature of the detection
+        
         Returns:
-            global_id (int or None), distance (float or None)
-        """
+            (gid, dist) tuple where gid is the matched global ID or None, and dist is the distance to the best match (or None if no match)
+        '''
         if self.gallery_mode in ("query", "both"):
             gid, dist = self.gallery.query(feature)
             if gid is not None:
@@ -174,10 +191,10 @@ class MultiCameraDeepSORT:
         return np.array(outputs) if len(outputs) > 0 else np.empty((0, 5))
 
     def finalize(self):
-        """
-        Call at the end of a video to flush all active tracks into the gallery.
-        Critical for Camera 1 — ensures all tracked people are saved.
-        """
+        '''
+        Finalize the tracker at the end of the video.
+        This can be used to save any remaining active tracks to the gallery.
+        '''
         if self.gallery_mode in ("build", "both"):
             saved_count = 0
             for t in self.trackers:

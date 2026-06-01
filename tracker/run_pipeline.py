@@ -18,7 +18,31 @@ def run(
     max_age=30, min_hits=3,
     iou_threshold=0.3, lambda_iou=0.4, lambda_app=0.6,
     export_jsonl_path=None,
-):
+):  
+    '''
+    Run the multi-camera tracking pipeline on the given video paths.
+    
+    Args:
+        cam1_video_path: str, path to camera 1 video file
+        cam2_video_path: str, path to camera 2 video file
+        feature_extractor: CustomReIDFeatureExtractor instance for extracting appearance features
+        gallery: CrossCameraGallery instance for managing cross-camera re-ID
+        cam1_yolo_model: str, path to YOLOv8 model for camera
+        cam2_yolo_model: str, path to YOLOv8 model for camera 2
+        target_classes: list of int, class IDs to track (e.g. [0] for person)
+        conf_threshold: float, confidence threshold for detections
+        nms_iou_threshold: float, IoU threshold for NMS in detection
+        max_age: int, max frames to keep "lost" tracks before deletion
+        min_hits: int, min consecutive hits to confirm a track
+        iou_threshold: float, IoU threshold for within-frame matching
+        lambda_iou: float, weight for IoU cost in matching
+        lambda_app: float, weight for appearance cost in matching
+        export_jsonl_path: str, path to export tracking results in JSONL format (optional)
+        
+    Returns:
+        None (results are saved to export_jsonl_path if provided)
+    '''
+    
     det1 = YOLOv8Detector(cam1_yolo_model, conf_threshold, nms_iou_threshold, target_classes)
     det2 = YOLOv8Detector(cam2_yolo_model, conf_threshold, nms_iou_threshold, target_classes)
 

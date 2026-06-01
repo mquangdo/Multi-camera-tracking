@@ -7,10 +7,14 @@ from tracker.gallery import CrossCameraGallery
 from tracker.feature_extractor import CustomReIDFeatureExtractor
 from tracker.run_pipeline import run
 from reid.model import ReIDModel
-from configs.load_config import load_run_config
+from configs.load_config import load_config
 
 def run_pipeline():
-    cfg = load_run_config(path="configs/main_config.yaml")
+    '''
+    Main function to run the multi-camera tracking pipeline.
+    '''
+    
+    cfg = load_config(path="configs/main_config.yaml")
     KalmanBoxTracker.count = 0
 
     feat = CustomReIDFeatureExtractor(

@@ -3,18 +3,8 @@ import sys, os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
-import cv2
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torchvision.transforms as transforms
-from scipy.optimize import linear_sum_assignment
-from filterpy.kalman import KalmanFilter
 from ultralytics import YOLO
-from collections import deque
-import json
-import pickle
-import time
+
 
 COCO_NAMES = {
     0: "person", 1: "bicycle", 2: "car", 3: "motorcycle", 4: "airplane",
@@ -61,10 +51,17 @@ class YOLOv8Detector:
 
         print("  YOLOv8 detector ready.")
 
+    
     def detect(self, frame_bgr):
-        """
-        Returns: np.ndarray (N, 5) — [x1, y1, x2, y2, confidence]
-        """
+        '''
+        Detect objects in the input frame.
+
+        Args:
+            frame_bgr: np.ndarray — input frame in BGR format
+
+        Returns:
+            np.ndarray (N, 5) — [x1, y1, x2, y2, confidence]
+        '''
         results = self.model.predict(
             source=frame_bgr,
             conf=self.conf_threshold,

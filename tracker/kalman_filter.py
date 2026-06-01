@@ -22,20 +22,23 @@ import time
 # Measurement:  [cx, cy, area, aspect_ratio]
 
 class KalmanBoxTracker:
-    """
+    '''
     Tracks a single object using a Kalman Filter for motion
     and stores appearance features for re-identification.
-    """
+    '''
     count = 0  # global ID counter (shared across cameras when not re-IDing)
 
     def __init__(self, bbox, feature=None, track_id=None):
-        """
+        '''
         Args:
             bbox:     [x1, y1, x2, y2]
             feature:  np.ndarray (512,) appearance embedding, or None
             track_id: int — if provided, use this ID (for cross-camera re-ID);
                       otherwise auto-increment
-        """
+        
+        Returns:
+            None
+        '''
         self.kf = KalmanFilter(dim_x=7, dim_z=4)
 
         # Constant velocity model
