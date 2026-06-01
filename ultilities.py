@@ -2,8 +2,10 @@ import cv2
 import numpy as np
 import json
 from collections import defaultdict
+import yaml
 
-# ---------- utils ----------
+'''Ultilities for Visualization'''
+
 def get_color(track_id: int):
     rng = np.random.default_rng(int(track_id) * 10007 + 12345)
     b, g, r = rng.integers(60, 255, size=3).tolist()
@@ -96,3 +98,10 @@ def build_click_boxes(tracks):
         x1, y1, x2, y2, tid = trk
         boxes.append((int(x1), int(y1), int(x2), int(y2), int(tid)))
     return boxes
+
+
+'''Ultilities for Loading config'''
+def load_config(path="config.yaml"):
+    with open(path, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f)
+    

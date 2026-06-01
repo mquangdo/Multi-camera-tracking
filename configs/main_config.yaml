@@ -1,0 +1,20 @@
+weights:
+  reid: "weights/reid/model01.pth"
+  detector: "weights/detector/yolov8m.pt"
+
+videos:
+  cam1: "videos/vid1_2.avi"
+  cam2: "videos/vid2_2.avi"
+
+results:
+  jsonl: "results/tracks.jsonl"
+
+reid:
+  num_classes: 2
+  input_size: [256, 128]
+  feature_dim: 2048
+  threshold: 0.7
+
+tracker:
+  max_age: 15
+  target_classes: ["person"]

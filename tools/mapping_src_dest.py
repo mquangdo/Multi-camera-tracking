@@ -124,7 +124,7 @@ def setup_windows(points, state):
     cv2.setMouseCallback("minimap", handler)
 
 # Main
-def main():
+def map():
     frame1, frame2, minimap = load_data(cam1_video, cam2_video, minimap_path)
     setup_windows(state["points"], state)
 
@@ -158,4 +158,4 @@ Phím:
 
 
 if __name__ == "__main__":
-    main()
+    map()
