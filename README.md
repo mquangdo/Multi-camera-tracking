@@ -30,7 +30,7 @@ For mapping, we must first configure the source mapping region and target mappin
 
 ![Mapping region](imgs/cam_to_mapv2.png)
 
-Then take the mid-bottom of bounding boxs as an approximation for that targets to map.
+Then take the bottom-mid of bounding boxs as an approximation for that targets to map.
 
 ![Mapping pos](imgs/cam1_mapping.png)
 ![Mapping pos2](imgs/cam2_mapping.png)
