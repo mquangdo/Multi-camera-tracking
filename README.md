@@ -2,6 +2,7 @@
 
 A cross-camera multi-person tracking system that combines **YOLOv8** object detection, **DeepSORT**-style tracking with Kalman filters, and a custom **ReID (Re-Identification)** model based on ResNet50 + BNNeck. The system maintains a cross-camera gallery of appearance embeddings so that when a person exits one camera view and enters another, they are re-identified and assigned the same global track ID.
 
+I would like to thank one of my best friend, Nguyen Duc Anh Quan (KumDen) for helping me create the experimental videos.
 
 ## Overview
 
