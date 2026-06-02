@@ -4,24 +4,46 @@ A cross-camera multi-person tracking system that combines **YOLOv8** object dete
 
 ![Tracking Result](imgs/result.png)
 
-## Architecture Overview
+## Overview
 
-```
-Camera 1 Video ──► YOLOv8 Detection ──► Feature Extraction ──┐
-                                                              ├──► MultiCamera DeepSORT ──► Cross-Camera Gallery ──► JSONL Export
-Camera 2 Video ──► YOLOv8 Detection ──► Feature Extraction ──┘
-```
+The simple pipeline consists of 3 phases: Object detection, Object tracking + ReID, 2D Ground plane mapping (Homography)
+![Simple pipeline](imgs/simple_pipeline.png)
 
-### Per-Frame Pipeline
 
-1. **Detection** — YOLOv8 predicts bounding boxes for all COCO classes, filtered to target classes (e.g. `person`).
-2. **Feature Extraction** — Bounding box crops are resized to 256×128 and passed through the ReID model to obtain L2-normalized 2048-D appearance embeddings.
-3. **State Prediction** — Each active KalmanBoxTracker predicts its next state (constant velocity model, 7-D state space).
-4. **Data Association** — Hungarian algorithm matches detections to existing trackers using a combined cost: `λ_iou * (1 - IoU) + λ_app * cosine_distance`. Matches below an IoU threshold are rejected.
-5. **Track Update** — Matched trackers update their Kalman state and append the new appearance feature. Unmatched detections create new trackers.
-6. **Cross-Camera ReID** — When `gallery_mode="query"` or `"both"`, unmatched detections are compared against the cross-camera gallery. If the cosine distance to the best match is below `reid_threshold`, the new tracker inherits the matched global ID.
-7. **Gallery Update** — Confirmed tracks (hit streak ≥ `min_hits`) have their features added to the gallery. When a track dies (time since update > `max_age`), all its accumulated features are flushed into the gallery.
-8. **Active-ID Locking** — A global ID is marked active on its current camera. ReID will not reassign an active ID to another camera until it goes inactive (track lost), preventing duplicate assignments.
+### Object tracking + ReID phase
+
+Here is how the Object tracking + ReID phase implemented. A cross-camera gallery is used to store feature vectors of each target for querying. Whenever getting an unmatched detections, compare its feature vector with feature vectors stored inside the gallery to reassign old IDs if that detections already appeared once in the past else new IDs.
+
+![Object tracking + ReID](imgs/reid_assignment.png)
+
+### 2D Ground plane mapping phase
+
+Here is the map used for 2D mapping (self drawn).
+
+![Map](imgs/mymapv10.png)
+
+The position of cameras is as below:
+
+![Pos](imgs/region_minimapv2.png)
+
+For mapping, we must first configure the source mapping region and target mapping region. 
+
+![Mapping region](imgs/cam_to_mapv2.png)
+
+Then take the mid-bottom of bounding boxs as an approximation for that targets to map.
+
+![Mapping pos](imgs/cam1_mapping.png)
+![Mapping pos2](imgs/cam2_mapping.png)
+
+Here is the result.
+
+![All mapping](imgs/allcam_mappingv2.png)
+
+## Demo result
+
+This is a demo of the project at two different points in time.
+![Res1](imgs/multicam_track_frame1.png)
+![Res2](imgs/multicam_track_frame2.png)
 
 ## Project Structure
 
